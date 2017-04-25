@@ -626,7 +626,7 @@ class TwoMirrorNYagSystem(object):
         return self._x_to_pixel(x, yag)
 
     def _m1_calc_cent_x(self, yag):
-        x = OneBounce(self.mirror_1._alpha,
+        x = OneBounce(self.mirror_1.read()['alpha']['value'],
                       self.source._x,
                       self.source._xp,
                       self.mirror_1._x,
@@ -779,13 +779,23 @@ class Mirror(object):
         self._alpha = alpha        
 
     def read(self):
-        return dict(ChainMap(*[motor.read() for motor in self.motors]))
+        read_dict = dict(ChainMap(*[motor.read() for motor in self.motors]))
+        if (read_dict['x']['value'] != self._x or
+            read_dict['z']['value'] != self._z or
+            read_dict['alpha']['value'] != self._alpha):
+            self._x = read_dict['x']['value']
+            self._z = read_dict['z']['value']
+            self._alpha = read_dict['alpha']['value']
+            return self.read()            
+        return read_dict
+        
 
     def set(self, cmd=None, **kwargs):
         if cmd in ("IN", "OUT"):
             pass  # If these were removable we'd implement it here
         elif cmd is not None:
             # Here is where we move the pitch motor if a value is set
+            self._alpha = cmd
             return self.alpha.set(cmd)
         self._x = kwargs.get('x', self._x)
         self._z = kwargs.get('z', self._z)
@@ -878,7 +888,8 @@ class YAG(object):
         self.invert = kwargs.get("invert", False)
         self.reader = Reader(self.name, {'centroid_x' : self.cent_x,
                                          'centroid_y' : self.cent_y,
-                                         'centroid' : self.cent})        
+                                         'centroid' : self.cent,
+                                         'centroid_x_abs' : self.cent_x_abs})        
         self.devices = [self.x, self.z, self.reader]
         self._x = x
         self._z = z
@@ -897,7 +908,11 @@ class YAG(object):
     
     def cent(self):
         return (self.cent_x(), self.cent_y())
-                             
+
+    def cent_x_abs(self):
+        return (self._x + (1 - 2*self.invert)*(self.cent_x()-np.floor(self.pix[0]/2))* 
+                self.size[0]/self.pix[0])
+                                     
     def read(self, *args, **kwargs):
         return dict(ChainMap(*[dev.read(*args, **kwargs)
                                for dev in self.devices]))
