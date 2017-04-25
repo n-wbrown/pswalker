@@ -206,6 +206,10 @@ def walk_to_pixel(detector, motor, target,
     #Impossible target
     #Too large initial step
     #No beam on PIM
+    #
+    #Also consider mode where points are weighted
+    #by proximity to target in case of non-linear
+    #curve
     ######################################
     average = average or 1
     system  = system or []
